@@ -1,0 +1,124 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>KHMER FLASH CARDS</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
+    </head>
+
+    <body>
+        <div class="h-svh flex justify-center items-center">
+            <div class="w-[32rem] h-full max-h-[24rem] flex flex-col gap-4">
+                <div class="flex gap-4">
+                    <h1 class="grow p-4 bg-cyan-600 border border-transparent rounded text-white">CONSONANTS</h1>
+                    <button class="p-4 hover:bg-cyan-100 border border-cyan-600 rounded" id="playSoundButton">PLAY SOUND</button>
+                </div>
+
+                <div class="grow grid grid-rows-2 grid-cols-2 gap-4 *:p-4
+                    *:flex *:justify-center *:items-center hover:*:bg-gray-50 *:border *:rounded
+                    *:text-6xl" id="selectChoiceView"></div>
+
+                <button class="p-4 hover:bg-yellow-100 border border-yellow-600 rounded" id="nextQuestionButton">SKIP</button>
+            </div>
+        </div>
+
+        <audio id="audioPlayer" class="hidden"></audio>
+
+        <script>
+        const consonants = ['ក', 'ខ', 'គ', 'ឃ', 'ង', 'ច', 'ឆ', 'ជ', 'ឈ', 'ញ', 'ដ', 'ឋ', 'ឌ', 'ឍ', 'ណ', 'ត', 'ថ', 'ទ', 'ធ', 'ន', 'ប', 'ផ', 'ព', 'ភ', 'ម', 'យ', 'រ', 'ល', 'វ', 'ស', 'ហ', 'ឡ', 'អ']
+
+        const playSoundButton = document.getElementById('playSoundButton')
+        const selectChoiceView = document.getElementById('selectChoiceView')
+        const nextQuestionButton = document.getElementById('nextQuestionButton')
+        const audioPlayer = document.getElementById('audioPlayer')
+
+        const soundStore = {}
+
+        async function downloadSound(text) {
+            return fetch(`/speak?text=${encodeURIComponent(text)}`)
+                .then(x => x.blob())
+                .then(x => URL.createObjectURL(x))
+                .then(x => soundStore[text] = x)
+        }
+
+        async function playSound() {
+            const text = playSoundButton.getAttribute('data-text')
+
+            if (!(text in soundStore)) {
+                try { await downloadSound(text) } catch (e) {}
+            }
+
+            if (navigator.userActivation.hasBeenActive) {
+                audioPlayer.src = soundStore[text]
+                audioPlayer.play()
+            }
+        }
+
+        function createChoiceButton(text) {
+            const el = document.createElement('button')
+            el.setAttribute('data-text', text)
+            el.innerHTML = text
+            return el
+        }
+
+        function checkChoice(answerText) {
+            return function () {
+                const currentChoice = this.getAttribute('data-text')
+
+                for (const el of selectChoiceView.children) {
+                    const text = el.getAttribute('data-text')
+                    if (currentChoice === text && currentChoice !== answerText)
+                        el.classList.add('bg-red-50', 'border-red-600')
+                    if (text === answerText)
+                        el.classList.add('bg-green-50', 'border-green-600')
+                }
+
+                nextQuestionButton.innerHTML = 'NEXT'
+            }
+        }
+
+        function clearSelectChoiceView() {
+            while (selectChoiceView.firstChild) {
+                selectChoiceView.removeChild(selectChoiceView.firstChild)
+            }
+        }
+
+        function generateQuestion() {
+            // const answerText = _.sample(consonants)
+            // const other = _.shuffle(consonants.filter(x => x !== answerText)).slice(0, 3)
+            // const choices = _.shuffle([].concat([answerText], other))
+            const arr = _.sampleSize(consonants, 4)
+            const answerText = arr[0]
+            const choices = _.shuffle(arr)
+            return { answerText, choices }
+        }
+
+        function buildQuestion() {
+            const { answerText, choices } = generateQuestion()
+
+            choices.forEach(function (text) {
+                const button = createChoiceButton(text)
+                button.addEventListener('click', checkChoice(answerText))
+                selectChoiceView.appendChild(button)
+            })
+
+            playSoundButton.setAttribute('data-text', answerText)
+        }
+
+        function nextQuestion() {
+            clearSelectChoiceView()
+            nextQuestionButton.innerHTML = 'SKIP'
+            buildQuestion()
+            playSound()
+        }
+
+        nextQuestionButton.addEventListener('click', nextQuestion)
+        playSoundButton.addEventListener('click', playSound)
+
+        nextQuestion()
+
+        </script>
+    </body>
+</html>
